@@ -119,9 +119,10 @@ export default function CreateRaffle() {
         contractAddress: CONTRACT_ADDRESS
       });
 
-      // Estimate gas first to catch errors early
+      // Estimate gas first to catch errors early (optional, skip if it fails)
+      let gasEstimate;
       try {
-        const gasEstimate = await contract.createRaffle.estimateGas(
+        gasEstimate = await contract.createRaffle.estimateGas(
           formData.title,
           formData.description,
           prizeAmountWei,
@@ -131,8 +132,15 @@ export default function CreateRaffle() {
         );
         console.log('Gas estimate:', gasEstimate.toString());
       } catch (estimateError: any) {
-        console.error('Gas estimation failed:', estimateError);
-        throw estimateError;
+        console.warn('Gas estimation failed, proceeding without gas limit:', estimateError.message);
+        // Continue without gas estimate - the transaction will use default gas
+      }
+
+      // Send transaction with optional gas limit
+      const txOptions: any = {};
+      if (gasEstimate) {
+        // Add 20% buffer to gas estimate
+        txOptions.gasLimit = gasEstimate + (gasEstimate / BigInt(5));
       }
 
       const tx = await contract.createRaffle(
@@ -141,7 +149,8 @@ export default function CreateRaffle() {
         prizeAmountWei,
         entryFeeWei,
         maxEntries,
-        duration
+        duration,
+        Object.keys(txOptions).length > 0 ? txOptions : undefined
       );
 
       console.log('Transaction sent:', tx.hash);
