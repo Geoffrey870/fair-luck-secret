@@ -1,10 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Wallet, Plus, User, LogOut } from "lucide-react";
-import raffleLogo from "@/assets/raffle-logo.png";
+import { Plus, User, LogOut } from "lucide-react";
+import raffleLogo from "@/assets/raffle-logo.svg";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount } from "wagmi";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,43 +14,7 @@ import {
 
 const Header = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    setProfile(data);
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Signed out successfully");
-    navigate("/");
-  };
+  const { address, isConnected } = useAccount();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
@@ -69,7 +32,7 @@ const Header = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            {user ? (
+            {isConnected && address ? (
               <>
                 <Button onClick={() => navigate("/create-raffle")} className="gap-2">
                   <Plus className="w-4 h-4" />
@@ -80,7 +43,7 @@ const Header = () => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="gap-2">
                       <User className="w-4 h-4" />
-                      {profile?.username || "User"}
+                      {address.slice(0, 6)}...{address.slice(-4)}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -88,18 +51,14 @@ const Header = () => {
                       My Raffles
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
+                    <DropdownMenuItem>
+                      <ConnectButton showBalance={false} />
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
-              <Button onClick={() => navigate("/auth")} className="gap-2">
-                <Wallet className="w-4 h-4" />
-                Sign In
-              </Button>
+              <ConnectButton />
             )}
           </div>
         </div>

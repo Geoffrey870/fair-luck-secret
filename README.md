@@ -1,110 +1,200 @@
-# FHEVM Hardhat Template
+# FHE Raffle - Encrypted On-Chain Raffle System
 
-A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
-FHEVM protocol by Zama.
+A decentralized raffle system built with Fully Homomorphic Encryption (FHE) that ensures complete privacy of entry amounts until the draw is completed.
 
-## Quick Start
+## Features
 
-For detailed instructions see:
-[FHEVM Hardhat Quick Start Tutorial](https://docs.zama.ai/protocol/solidity-guides/getting-started/quick-start-tutorial)
+- **Encrypted Entry Amounts**: All entry amounts are encrypted using FHE, ensuring privacy
+- **On-Chain Storage**: All raffle data is stored on the blockchain
+- **Rainbow Wallet Integration**: Easy wallet connection using RainbowKit
+- **Decentralized**: No central authority, fully trustless
 
-### Prerequisites
+## Tech Stack
 
-- **Node.js**: Version 20 or higher
-- **npm or yarn/pnpm**: Package manager
+### Smart Contracts
+- Solidity ^0.8.24
+- FHEVM (Zama)
+- Hardhat
 
-### Installation
+### Frontend
+- React + TypeScript
+- Vite
+- RainbowKit + Wagmi
+- shadcn-ui
+- Tailwind CSS
 
-1. **Install dependencies**
+## Prerequisites
 
-   ```bash
-   npm install
-   ```
+- Node.js >= 20
+- npm >= 7.0.0
+- Hardhat
+- MetaMask or compatible wallet
 
-2. **Set up environment variables**
+## Installation
 
-   ```bash
-   npx hardhat vars set MNEMONIC
-
-   # Set your Infura API key for network access
-   npx hardhat vars set INFURA_API_KEY
-
-   # Optional: Set Etherscan API key for contract verification
-   npx hardhat vars set ETHERSCAN_API_KEY
-   ```
-
-3. **Compile and test**
-
-   ```bash
-   npm run compile
-   npm run test
-   ```
-
-4. **Deploy to local network**
-
-   ```bash
-   # Start a local FHEVM-ready node
-   npx hardhat node
-   # Deploy to local network
-   npx hardhat deploy --network localhost
-   ```
-
-5. **Deploy to Sepolia Testnet**
-
-   ```bash
-   # Deploy to Sepolia
-   npx hardhat deploy --network sepolia
-   # Verify contract on Etherscan
-   npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
-   ```
-
-6. **Test on Sepolia Testnet**
-
-   ```bash
-   # Once deployed, you can run a simple test on Sepolia.
-   npx hardhat test --network sepolia
-   ```
-
-## 📁 Project Structure
-
-```
-fhevm-hardhat-template/
-├── contracts/           # Smart contract source files
-│   └── FHECounter.sol   # Example FHE counter contract
-├── deploy/              # Deployment scripts
-├── tasks/               # Hardhat custom tasks
-├── test/                # Test files
-├── hardhat.config.ts    # Hardhat configuration
-└── package.json         # Dependencies and scripts
+1. Clone the repository:
+```bash
+git clone https://github.com/Geoffrey870/fair-luck-secret.git
+cd fair-luck-secret
 ```
 
-## 📜 Available Scripts
+2. Install dependencies:
+```bash
+npm install
+cd ui
+npm install
+```
 
-| Script             | Description              |
-| ------------------ | ------------------------ |
-| `npm run compile`  | Compile all contracts    |
-| `npm run test`     | Run all tests            |
-| `npm run coverage` | Generate coverage report |
-| `npm run lint`     | Run linting checks       |
-| `npm run clean`    | Clean build artifacts    |
+## Development
 
-## 📚 Documentation
+### 1. Compile Contracts
 
-- [FHEVM Documentation](https://docs.zama.ai/fhevm)
-- [FHEVM Hardhat Setup Guide](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup)
-- [FHEVM Testing Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat/write_test)
-- [FHEVM Hardhat Plugin](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat)
+```bash
+npm run compile
+```
 
-## 📄 License
+This will generate TypeScript types in the `types/` directory.
 
-This project is licensed under the BSD-3-Clause-Clear License. See the [LICENSE](LICENSE) file for details.
+### 2. Start Local Hardhat Node
 
-## 🆘 Support
+In one terminal:
+```bash
+npx hardhat node
+```
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/zama-ai/fhevm/issues)
-- **Documentation**: [FHEVM Docs](https://docs.zama.ai)
-- **Community**: [Zama Discord](https://discord.gg/zama)
+### 3. Deploy Contracts to Local Network
 
----
+In another terminal:
+```bash
+npx hardhat deploy --network hardhat
+```
 
-**Built with ❤️ by the Zama team**
+Note the contract address from the deployment output and update `ui/src/config/contracts.ts` with:
+```typescript
+export const CONTRACT_ADDRESS = 'YOUR_DEPLOYED_ADDRESS';
+```
+
+Or set it as an environment variable:
+```bash
+export VITE_CONTRACT_ADDRESS=YOUR_DEPLOYED_ADDRESS
+```
+
+### 4. Run Tests
+
+Local tests (mock FHEVM):
+```bash
+npm test
+```
+
+Sepolia testnet tests:
+```bash
+npm run test:sepolia
+```
+
+### 5. Start Frontend
+
+```bash
+cd ui
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`
+
+## Contract Functions
+
+### Create Raffle
+- `createRaffle(title, description, encPrizeAmount, encEntryFee, maxEntries, durationHours, inputProof)`
+- Creates a new raffle with encrypted prize amount and entry fee
+
+### Enter Raffle
+- `enterRaffle(raffleId, encAmount, inputProof)`
+- Enter a raffle with an encrypted entry amount
+
+### View Raffles
+- `getRaffleCount()` - Get total number of raffles
+- `getRaffleMeta(raffleId)` - Get raffle metadata
+- `getEncryptedPrizeAmount(raffleId)` - Get encrypted prize amount
+- `getEncryptedEntryFee(raffleId)` - Get encrypted entry fee
+- `getEntryCount(raffleId)` - Get number of entries
+- `hasEntered(raffleId, participant)` - Check if address has entered
+
+### Draw Winner
+- `drawWinner(raffleId)` - Draw the winner (only creator can call after expiration)
+
+## Deployment
+
+### Local Network
+```bash
+npx hardhat deploy --network hardhat
+```
+
+### Sepolia Testnet
+1. Set up environment variables:
+```bash
+npx hardhat vars setup
+```
+
+2. Deploy:
+```bash
+npx hardhat deploy --network sepolia
+```
+
+3. Update frontend contract address in `ui/src/config/contracts.ts` or set `VITE_CONTRACT_ADDRESS` environment variable.
+
+## Project Structure
+
+```
+fair-luck-secret/
+├── contracts/          # Solidity smart contracts
+│   └── FHERaffle.sol
+├── test/              # Test files
+│   ├── FHERaffle.ts
+│   └── FHERaffleSepolia.ts
+├── deploy/            # Deployment scripts
+│   └── deploy.ts
+├── ui/                # Frontend application
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── config/
+│   │   └── lib/
+│   └── public/
+└── types/             # Generated TypeScript types
+```
+
+## Environment Variables
+
+Create a `.env` file in the root directory:
+```
+MNEMONIC=your_mnemonic_phrase
+INFURA_API_KEY=your_infura_api_key
+ETHERSCAN_API_KEY=your_etherscan_api_key
+```
+
+For frontend, create `ui/.env`:
+```
+VITE_CONTRACT_ADDRESS=your_contract_address
+```
+
+## Testing
+
+### Local Tests
+Tests run against a mock FHEVM environment:
+```bash
+npm test
+```
+
+### Sepolia Tests
+Tests run against Sepolia testnet (requires deployed contract):
+```bash
+npm run test:sepolia
+```
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

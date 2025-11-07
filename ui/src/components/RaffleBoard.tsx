@@ -1,78 +1,112 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect, useMemo } from "react";
 import RaffleCard from "./RaffleCard";
 import EntryModal from "./EntryModal";
 import { toast } from "sonner";
+import { CONTRACT_ADDRESS, getFHERaffleFactory } from "@/config/contracts";
+
+interface RaffleMeta {
+  creator: string;
+  title: string;
+  description: string;
+  maxEntries: bigint;
+  currentEntries: bigint;
+  expireAt: bigint;
+  isActive: boolean;
+  isDrawn: boolean;
+  winner: string;
+  createdAt: bigint;
+}
 
 const RaffleBoard = () => {
   const [selectedRaffle, setSelectedRaffle] = useState<any>(null);
   const [raffles, setRaffles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Get raffle count - using direct contract call instead of wagmi hook
+  // since we need dynamic ABI loading
+  const [raffleCount, setRaffleCount] = useState<bigint | null>(null);
 
   useEffect(() => {
-    fetchRaffles();
-    
-    const channel = supabase
-      .channel('raffles-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'raffles'
-        },
-        () => {
-          fetchRaffles();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+    const fetchCount = async () => {
+      try {
+        const { getRaffleCount } = await import('@/lib/contractUtils');
+        const count = await getRaffleCount();
+        setRaffleCount(BigInt(count));
+      } catch (error) {
+        console.error('Error fetching raffle count:', error);
+      }
     };
+    fetchCount();
   }, []);
+
+  const count = useMemo(() => {
+    if (!raffleCount) return 0;
+    return Number(raffleCount);
+  }, [raffleCount]);
+
+  useEffect(() => {
+    if (count > 0) {
+      fetchRaffles();
+    } else {
+      setRaffles([]);
+    }
+  }, [count]);
 
   const fetchRaffles = async () => {
     try {
-      const { data, error } = await supabase
-        .from("raffles")
-        .select(`
-          *,
-          raffle_entries(count)
-        `)
-        .eq("status", "active")
-        .order("created_at", { ascending: false });
+      const raffleList: any[] = [];
+      
+      for (let i = 0; i < count; i++) {
+        try {
+          // We'll need to fetch metadata using a custom hook or direct contract call
+          // For now, we'll create a helper function
+          const meta = await fetchRaffleMeta(i);
+          if (!meta) continue;
 
-      if (error) throw error;
+          const now = Math.floor(Date.now() / 1000);
+          const expireAt = Number(meta.expireAt);
+          const isActive = meta.isActive && now < expireAt;
 
-      const rafflesWithCounts = data.map((raffle) => ({
-        id: raffle.id,
-        name: raffle.title,
-        prize: `${raffle.prize_amount} ETH`,
-        totalEntries: raffle.raffle_entries[0]?.count || 0,
-        timeRemaining: calculateTimeRemaining(raffle.expire_at),
-        isActive: raffle.status === "active",
-        rawData: raffle,
-      }));
+          if (isActive) {
+            raffleList.push({
+              id: i,
+              name: meta.title,
+              prize: "Encrypted", // Prize amount is encrypted
+              totalEntries: Number(meta.currentEntries),
+              timeRemaining: calculateTimeRemaining(expireAt),
+              isActive: true,
+              rawData: meta,
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching raffle ${i}:`, error);
+        }
+      }
 
-      setRaffles(rafflesWithCounts);
+      setRaffles(raffleList);
     } catch (error: any) {
       toast.error(error.message || "Failed to load raffles");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const calculateTimeRemaining = (expireAt: string) => {
-    const now = new Date();
-    const expire = new Date(expireAt);
-    const diff = expire.getTime() - now.getTime();
+  const fetchRaffleMeta = async (raffleId: number): Promise<RaffleMeta | null> => {
+    try {
+      const { getRaffleMeta } = await import('@/lib/contractUtils');
+      return await getRaffleMeta(raffleId);
+    } catch (error) {
+      console.error(`Error fetching raffle ${raffleId}:`, error);
+      return null;
+    }
+  };
+
+  const calculateTimeRemaining = (expireAt: number) => {
+    const now = Math.floor(Date.now() / 1000);
+    const diff = expireAt - now;
 
     if (diff <= 0) return "Ended";
 
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const days = Math.floor(diff / (60 * 60 * 24));
+    const hours = Math.floor((diff % (60 * 60 * 24)) / (60 * 60));
+    const minutes = Math.floor((diff % (60 * 60)) / 60);
 
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
@@ -88,10 +122,10 @@ const RaffleBoard = () => {
     fetchRaffles();
   };
 
-  if (loading) {
+  if (count === 0) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <p className="text-muted-foreground">Loading raffles...</p>
+        <p className="text-muted-foreground">No raffles available yet. Create one to get started!</p>
       </div>
     );
   }
@@ -107,8 +141,7 @@ const RaffleBoard = () => {
 
       {raffles.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">No active raffles at the moment</p>
-          <p className="text-sm text-muted-foreground">Check back soon or create your own!</p>
+          <p className="text-muted-foreground mb-4">Loading raffles...</p>
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

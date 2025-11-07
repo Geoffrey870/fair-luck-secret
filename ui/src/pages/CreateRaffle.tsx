@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAccount } from "wagmi";
+import { Contract } from "ethers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +10,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import Header from "@/components/Header";
+import { useZamaInstance } from "@/hooks/useZamaInstance";
+import { useEthersSigner } from "@/hooks/useEthersSigner";
+import { CONTRACT_ADDRESS, getFHERaffleFactory } from "@/config/contracts";
 
 export default function CreateRaffle() {
   const navigate = useNavigate();
+  const { address, isConnected } = useAccount();
+  const { instance, isLoading: zamaLoading } = useZamaInstance();
+  const signerPromise = useEthersSigner();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -24,40 +31,84 @@ export default function CreateRaffle() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isConnected || !address) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    if (!instance || !signerPromise) {
+      toast.error("Encryption service not ready");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Please sign in to create a raffle");
-        navigate("/auth");
-        return;
-      }
+      const prizeAmountWei = parseFloat(formData.prizeAmount) * 1e18;
+      const entryFeeWei = parseFloat(formData.entryFee) * 1e18;
+      
+      // Scale down for euint32 (divide by 1e12 to fit in uint32 range)
+      const prizeAmountScaled = Math.floor(prizeAmountWei / 1e12);
+      const entryFeeScaled = Math.floor(entryFeeWei / 1e12);
 
-      const expireAt = new Date();
-      expireAt.setHours(expireAt.getHours() + parseInt(formData.duration));
+      // Encrypt prize amount
+      const encryptedPrize = await instance
+        .createEncryptedInput(CONTRACT_ADDRESS, address)
+        .add32(prizeAmountScaled)
+        .encrypt();
 
-      const { error } = await supabase.from("raffles").insert({
-        creator_id: user.id,
-        title: formData.title,
-        description: formData.description,
-        prize_amount: parseFloat(formData.prizeAmount),
-        entry_fee: parseFloat(formData.entryFee),
-        max_entries: parseInt(formData.maxEntries),
-        expire_at: expireAt.toISOString(),
-        status: "active",
-      });
+      // Encrypt entry fee
+      const encryptedEntryFee = await instance
+        .createEncryptedInput(CONTRACT_ADDRESS, address)
+        .add32(entryFeeScaled)
+        .encrypt();
 
-      if (error) throw error;
+      // Submit to contract
+      const signer = await signerPromise;
+      const Factory = await getFHERaffleFactory();
+      const contract = new Contract(
+        CONTRACT_ADDRESS,
+        Factory.abi,
+        signer
+      );
+
+      const tx = await contract.createRaffle(
+        formData.title,
+        formData.description,
+        encryptedPrize.handles[0],
+        encryptedEntryFee.handles[0],
+        parseInt(formData.maxEntries),
+        parseInt(formData.duration),
+        encryptedPrize.inputProof
+      );
+
+      await tx.wait();
 
       toast.success("Raffle created successfully!");
       navigate("/");
     } catch (error: any) {
+      console.error("Error creating raffle:", error);
       toast.error(error.message || "Failed to create raffle");
     } finally {
       setLoading(false);
     }
   };
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        <Header />
+        <main className="container mx-auto px-4 py-8 max-w-2xl">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground mb-4">Please connect your wallet to create a raffle</p>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -172,8 +223,12 @@ export default function CreateRaffle() {
                 </p>
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Creating Raffle..." : "Create Raffle"}
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || zamaLoading}
+              >
+                {zamaLoading ? "Initializing encryption..." : loading ? "Creating Raffle..." : "Create Raffle"}
               </Button>
             </form>
           </CardContent>

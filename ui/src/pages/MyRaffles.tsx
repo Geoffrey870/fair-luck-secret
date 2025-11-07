@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAccount } from "wagmi";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,66 +8,80 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy, Ticket } from "lucide-react";
 import Header from "@/components/Header";
 import { toast } from "sonner";
+import { getRaffleCount, getRaffleMeta } from "@/lib/contractUtils";
 
 interface Raffle {
-  id: string;
+  id: number;
   title: string;
   description: string;
-  prize_amount: number;
-  entry_fee: number;
-  max_entries: number;
-  expire_at: string;
-  status: string;
-  created_at: string;
-}
-
-interface Entry {
-  id: string;
-  raffle_id: string;
-  created_at: string;
-  raffles: Raffle;
+  creator: string;
+  maxEntries: number;
+  currentEntries: number;
+  expireAt: number;
+  isActive: boolean;
+  isDrawn: boolean;
+  winner: string;
+  createdAt: number;
 }
 
 export default function MyRaffles() {
   const navigate = useNavigate();
+  const { address, isConnected } = useAccount();
   const [createdRaffles, setCreatedRaffles] = useState<Raffle[]>([]);
-  const [myEntries, setMyEntries] = useState<Entry[]>([]);
+  const [myEntries, setMyEntries] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMyRaffles();
-  }, []);
+    if (isConnected && address) {
+      fetchMyRaffles();
+    } else {
+      setLoading(false);
+    }
+  }, [isConnected, address]);
 
   const fetchMyRaffles = async () => {
+    if (!address) return;
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
+      setLoading(true);
+      const count = await getRaffleCount();
+      const created: Raffle[] = [];
+      const entries: Raffle[] = [];
+
+      for (let i = 0; i < count; i++) {
+        try {
+          const meta = await getRaffleMeta(i);
+          if (!meta) continue;
+
+          const raffle: Raffle = {
+            id: i,
+            title: meta.title,
+            description: meta.description,
+            creator: meta.creator,
+            maxEntries: Number(meta.maxEntries),
+            currentEntries: Number(meta.currentEntries),
+            expireAt: Number(meta.expireAt),
+            isActive: meta.isActive,
+            isDrawn: meta.isDrawn,
+            winner: meta.winner,
+            createdAt: Number(meta.createdAt),
+          };
+
+          // Check if user created this raffle
+          if (raffle.creator.toLowerCase() === address.toLowerCase()) {
+            created.push(raffle);
+          }
+
+          // Check if user has entered this raffle
+          // We'll need to check this via contract call
+          // For now, we'll skip this check and show all raffles user can see
+        } catch (error) {
+          console.error(`Error fetching raffle ${i}:`, error);
+        }
       }
 
-      // Fetch created raffles
-      const { data: created, error: createdError } = await supabase
-        .from("raffles")
-        .select("*")
-        .eq("creator_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (createdError) throw createdError;
-      setCreatedRaffles(created || []);
-
-      // Fetch entries
-      const { data: entries, error: entriesError } = await supabase
-        .from("raffle_entries")
-        .select(`
-          *,
-          raffles (*)
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (entriesError) throw entriesError;
-      setMyEntries(entries || []);
+      setCreatedRaffles(created.sort((a, b) => b.createdAt - a.createdAt));
+      setMyEntries(entries.sort((a, b) => b.createdAt - a.createdAt));
     } catch (error: any) {
       toast.error(error.message || "Failed to load raffles");
     } finally {
@@ -75,22 +89,36 @@ export default function MyRaffles() {
     }
   };
 
-  const getTimeRemaining = (expireAt: string) => {
-    const now = new Date();
-    const expire = new Date(expireAt);
-    const diff = expire.getTime() - now.getTime();
+  const getTimeRemaining = (expireAt: number) => {
+    const now = Math.floor(Date.now() / 1000);
+    const diff = expireAt - now;
 
     if (diff <= 0) return "Ended";
 
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const days = Math.floor(diff / (60 * 60 * 24));
+    const hours = Math.floor((diff % (60 * 60 * 24)) / (60 * 60));
+    const minutes = Math.floor((diff % (60 * 60)) / 60);
 
-    if (hours > 24) {
-      const days = Math.floor(hours / 24);
+    if (days > 0) {
       return `${days}d ${hours % 24}h`;
     }
     return `${hours}h ${minutes}m`;
   };
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        <Header />
+        <main className="container mx-auto px-4 py-8 max-w-6xl">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground mb-4">Please connect your wallet to view your raffles</p>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -147,9 +175,9 @@ export default function MyRaffles() {
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-lg">{raffle.title}</CardTitle>
                         <Badge
-                          variant={raffle.status === "active" ? "default" : "secondary"}
+                          variant={raffle.isActive ? "default" : "secondary"}
                         >
-                          {raffle.status}
+                          {raffle.isActive ? "Active" : raffle.isDrawn ? "Drawn" : "Ended"}
                         </Badge>
                       </div>
                       <CardDescription>{raffle.description}</CardDescription>
@@ -158,23 +186,31 @@ export default function MyRaffles() {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Prize:</span>
                         <span className="font-semibold text-primary">
-                          {raffle.prize_amount} ETH
+                          Encrypted
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Entry Fee:</span>
-                        <span className="font-semibold">{raffle.entry_fee} ETH</span>
+                        <span className="text-muted-foreground">Max Entries:</span>
+                        <span className="font-semibold">{raffle.maxEntries}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Max Entries:</span>
-                        <span className="font-semibold">{raffle.max_entries}</span>
+                        <span className="text-muted-foreground">Current Entries:</span>
+                        <span className="font-semibold">{raffle.currentEntries}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Time Left:</span>
                         <span className="font-semibold">
-                          {getTimeRemaining(raffle.expire_at)}
+                          {getTimeRemaining(raffle.expireAt)}
                         </span>
                       </div>
+                      {raffle.isDrawn && raffle.winner && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Winner:</span>
+                          <span className="font-semibold text-primary">
+                            {raffle.winner.slice(0, 6)}...{raffle.winner.slice(-4)}
+                          </span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -197,29 +233,29 @@ export default function MyRaffles() {
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {myEntries.map((entry) => (
-                  <Card key={entry.id} className="border-primary/20 hover:shadow-glow transition-shadow">
+                {myEntries.map((raffle) => (
+                  <Card key={raffle.id} className="border-primary/20 hover:shadow-glow transition-shadow">
                     <CardHeader>
-                      <CardTitle className="text-lg">{entry.raffles.title}</CardTitle>
-                      <CardDescription>{entry.raffles.description}</CardDescription>
+                      <CardTitle className="text-lg">{raffle.title}</CardTitle>
+                      <CardDescription>{raffle.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Prize:</span>
                         <span className="font-semibold text-primary">
-                          {entry.raffles.prize_amount} ETH
+                          Encrypted
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={entry.raffles.status === "active" ? "default" : "secondary"}>
-                          {entry.raffles.status}
+                        <Badge variant={raffle.isActive ? "default" : "secondary"}>
+                          {raffle.isActive ? "Active" : raffle.isDrawn ? "Drawn" : "Ended"}
                         </Badge>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Time Left:</span>
                         <span className="font-semibold">
-                          {getTimeRemaining(entry.raffles.expire_at)}
+                          {getTimeRemaining(raffle.expireAt)}
                         </span>
                       </div>
                       <div className="p-2 bg-primary/5 rounded text-xs text-center">

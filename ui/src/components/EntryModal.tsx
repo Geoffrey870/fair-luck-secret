@@ -11,8 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock, Shield } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useAccount } from "wagmi";
+import { Contract } from "ethers";
+import { useZamaInstance } from "@/hooks/useZamaInstance";
+import { useEthersSigner } from "@/hooks/useEthersSigner";
+import { CONTRACT_ADDRESS, getFHERaffleFactory } from "@/config/contracts";
 
 interface EntryModalProps {
   isOpen: boolean;
@@ -21,46 +24,69 @@ interface EntryModalProps {
 }
 
 const EntryModal = ({ isOpen, onClose, raffle }: EntryModalProps) => {
+  const { address, isConnected } = useAccount();
+  const { instance, isLoading: zamaLoading } = useZamaInstance();
+  const signerPromise = useEthersSigner();
   const [entryAmount, setEntryAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isConnected || !address) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    if (!instance || !signerPromise) {
+      toast.error("Encryption service not ready");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast.error("Please sign in to enter a raffle");
-        navigate("/auth");
-        return;
-      }
+      const entryAmountWei = parseFloat(entryAmount) * 1e18;
+      const entryAmountScaled = Math.floor(entryAmountWei / 1e12);
 
-      const encryptedAmount = `FHE_ENCRYPTED_${btoa(entryAmount)}_${Date.now()}`;
+      // Encrypt entry amount
+      const encryptedAmount = await instance
+        .createEncryptedInput(CONTRACT_ADDRESS, address)
+        .add32(entryAmountScaled)
+        .encrypt();
 
-      const { error } = await supabase.from("raffle_entries").insert({
-        raffle_id: raffle.id,
-        user_id: user.id,
-        encrypted_amount: encryptedAmount,
-      });
+      // Submit to contract
+      const signer = await signerPromise;
+      const Factory = await getFHERaffleFactory();
+      const contract = new Contract(
+        CONTRACT_ADDRESS,
+        Factory.abi,
+        signer
+      );
 
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("You have already entered this raffle");
-        } else {
-          throw error;
-        }
-      } else {
-        toast.success("Entry submitted! Your amount is encrypted and secure.");
-        setEntryAmount("");
-        onClose();
-      }
+      setIsConfirming(true);
+      const tx = await contract.enterRaffle(
+        raffle.id,
+        encryptedAmount.handles[0],
+        encryptedAmount.inputProof
+      );
+
+      await tx.wait();
+
+      toast.success("Entry submitted! Your amount is encrypted and secure.");
+      setEntryAmount("");
+      onClose();
     } catch (error: any) {
-      toast.error(error.message || "Failed to submit entry");
+      console.error("Error entering raffle:", error);
+      if (error.message?.includes("Already entered")) {
+        toast.error("You have already entered this raffle");
+      } else {
+        toast.error(error.message || "Failed to submit entry");
+      }
     } finally {
       setIsSubmitting(false);
+      setIsConfirming(false);
     }
   };
 
@@ -85,18 +111,16 @@ const EntryModal = ({ isOpen, onClose, raffle }: EntryModalProps) => {
               id="amount"
               type="number"
               step="0.001"
-              min={raffle.rawData?.entry_fee || 0.001}
-              placeholder={`Min: ${raffle.rawData?.entry_fee || 0.001} ETH`}
+              min="0.001"
+              placeholder="0.1"
               value={entryAmount}
               onChange={(e) => setEntryAmount(e.target.value)}
               required
               className="border-border bg-background text-foreground"
             />
-            {raffle.rawData?.entry_fee && (
-              <p className="text-xs text-muted-foreground">
-                Minimum entry: {raffle.rawData.entry_fee} ETH
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              Minimum entry: 0.001 ETH
+            </p>
           </div>
 
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
@@ -116,19 +140,29 @@ const EntryModal = ({ isOpen, onClose, raffle }: EntryModalProps) => {
               variant="outline"
               onClick={onClose}
               className="flex-1"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isConfirming}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               className="flex-1 gap-2"
-              disabled={isSubmitting || !entryAmount}
+              disabled={isSubmitting || isConfirming || !entryAmount || zamaLoading || !isConnected}
             >
-              {isSubmitting ? (
+              {zamaLoading ? (
                 <>
-                  <Lock className="h-4 w-4 animate-lock-spin" />
+                  <Lock className="h-4 w-4 animate-spin" />
+                  Initializing...
+                </>
+              ) : isSubmitting ? (
+                <>
+                  <Lock className="h-4 w-4 animate-spin" />
                   Encrypting...
+                </>
+              ) : isConfirming ? (
+                <>
+                  <Lock className="h-4 w-4 animate-spin" />
+                  Confirming...
                 </>
               ) : (
                 <>
