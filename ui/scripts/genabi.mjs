@@ -27,7 +27,7 @@ if (!fs.existsSync(dir)) {
   process.exit(1);
 }
 
-const deploymentsDir = path.join(dir, "deployments");
+const deploymentsDir = path.join(dir, "deployments/localhost");
 
 function readDeployment(chainName, chainId, contractName, optional) {
   const chainDeploymentDir = path.join(deploymentsDir, chainName);
