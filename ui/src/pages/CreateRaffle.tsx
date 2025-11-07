@@ -90,13 +90,8 @@ export default function CreateRaffle() {
 
       // Submit to contract (prize and entry fee are now public, not encrypted)
       const signer = await signerPromise;
-      const contract = new Contract(
-        contractAddress,
-        getFHERaffleABI(),
-        signer
-      );
-
-      // Verify contract exists at address
+      
+      // Verify contract exists at address first
       const provider = signer.provider;
       if (provider) {
         const code = await provider.getCode(contractAddress);
@@ -105,6 +100,21 @@ export default function CreateRaffle() {
           setLoading(false);
           return;
         }
+      }
+      
+      // Create contract instance with signer
+      const contract = new Contract(
+        contractAddress,
+        getFHERaffleABI(),
+        signer
+      );
+      
+      // Verify signer address matches connected address
+      const signerAddress = await signer.getAddress();
+      if (signerAddress.toLowerCase() !== address?.toLowerCase()) {
+        toast.error("Signer address mismatch. Please reconnect your wallet.");
+        setLoading(false);
+        return;
       }
 
       console.log('Creating raffle with params:', {
