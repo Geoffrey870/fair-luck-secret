@@ -271,6 +271,40 @@ export const FHERaffleABI = {
           "internalType": "uint256",
           "name": "raffleId",
           "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "entryIndex",
+          "type": "uint256"
+        }
+      ],
+      "name": "getEntry",
+      "outputs": [
+        {
+          "internalType": "euint32",
+          "name": "encAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "participant",
+          "type": "address"
+        },
+        {
+          "internalType": "uint64",
+          "name": "createdAt",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "raffleId",
+          "type": "uint256"
         }
       ],
       "name": "getPrizeAmount",
