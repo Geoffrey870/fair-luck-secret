@@ -120,15 +120,15 @@ const EntryModal = ({ isOpen, onClose, raffle }: EntryModalProps) => {
               id="amount"
               type="number"
               step="0.001"
-              min="0.001"
-              placeholder="0.1"
+              min={raffle.entryFee ? (Number(raffle.entryFee) / 1e18).toString() : "0.001"}
+              placeholder={raffle.entryFee ? (Number(raffle.entryFee) / 1e18).toString() : "0.1"}
               value={entryAmount}
               onChange={(e) => setEntryAmount(e.target.value)}
               required
               className="border-border bg-background text-foreground"
             />
             <p className="text-xs text-muted-foreground">
-              Minimum entry: 0.001 ETH
+              Entry fee: {raffle.entryFee ? Number(raffle.entryFee) / 1e18 : '0.001'} ETH
             </p>
           </div>
 

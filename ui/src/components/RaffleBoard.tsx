@@ -72,10 +72,12 @@ const RaffleBoard = () => {
 
           if (isActive) {
             const prizeEth = Number(meta.prizeAmount) / 1e18;
+            const entryFeeEth = Number(meta.entryFee) / 1e18;
             raffleList.push({
               id: i,
               name: meta.title,
               prize: `${prizeEth} ETH`, // Prize amount is now public
+              entryFee: meta.entryFee,
               totalEntries: Number(meta.currentEntries),
               timeRemaining: calculateTimeRemaining(expireAt),
               isActive: true,

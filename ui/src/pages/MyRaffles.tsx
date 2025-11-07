@@ -281,8 +281,11 @@ export default function MyRaffles() {
                           {getTimeRemaining(raffle.expireAt)}
                         </span>
                       </div>
-                      <div className="p-2 bg-primary/5 rounded text-xs text-center">
-                        Entry encrypted with FHE 🔒
+                      <div className="p-2 bg-primary/5 rounded text-xs text-center space-y-1">
+                        <div>Entry encrypted with FHE 🔒</div>
+                        <div className="text-muted-foreground">
+                          Your entry amount: {Number(raffle.entryFee) / 1e18} ETH
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
