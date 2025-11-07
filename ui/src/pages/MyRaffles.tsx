@@ -15,6 +15,8 @@ interface Raffle {
   title: string;
   description: string;
   creator: string;
+  prizeAmount: bigint;
+  entryFee: bigint;
   maxEntries: number;
   currentEntries: number;
   expireAt: number;
@@ -59,6 +61,8 @@ export default function MyRaffles() {
             title: meta.title,
             description: meta.description,
             creator: meta.creator,
+            prizeAmount: meta.prizeAmount,
+            entryFee: meta.entryFee,
             maxEntries: Number(meta.maxEntries),
             currentEntries: Number(meta.currentEntries),
             expireAt: Number(meta.expireAt),
@@ -193,7 +197,13 @@ export default function MyRaffles() {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Prize:</span>
                         <span className="font-semibold text-primary">
-                          Encrypted
+                          {Number(raffle.prizeAmount) / 1e18} ETH
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Entry Fee:</span>
+                        <span className="font-semibold">
+                          {Number(raffle.entryFee) / 1e18} ETH
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
@@ -250,7 +260,13 @@ export default function MyRaffles() {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Prize:</span>
                         <span className="font-semibold text-primary">
-                          Encrypted
+                          {Number(raffle.prizeAmount) / 1e18} ETH
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Entry Fee:</span>
+                        <span className="font-semibold">
+                          {Number(raffle.entryFee) / 1e18} ETH
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
