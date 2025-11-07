@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy, Ticket } from "lucide-react";
 import Header from "@/components/Header";
 import { toast } from "sonner";
-import { getRaffleCount, getRaffleMeta } from "@/lib/contractUtils";
+import { getRaffleCount, getRaffleMeta, hasEntered } from "@/lib/contractUtils";
 
 interface Raffle {
   id: number;
@@ -74,8 +74,14 @@ export default function MyRaffles() {
           }
 
           // Check if user has entered this raffle
-          // We'll need to check this via contract call
-          // For now, we'll skip this check and show all raffles user can see
+          try {
+            const entered = await hasEntered(i, address, chainId);
+            if (entered) {
+              entries.push(raffle);
+            }
+          } catch (error) {
+            console.error(`Error checking entry for raffle ${i}:`, error);
+          }
         } catch (error) {
           console.error(`Error fetching raffle ${i}:`, error);
         }

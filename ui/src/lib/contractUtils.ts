@@ -56,3 +56,24 @@ export async function getRaffleCount(chainId?: number): Promise<number> {
   return Number(count);
 }
 
+export async function hasEntered(raffleId: number, participant: string, chainId?: number): Promise<boolean> {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    return false;
+  }
+
+  const contractAddress = chainId ? getContractAddress(chainId) : undefined;
+  if (!contractAddress) {
+    return false;
+  }
+
+  const provider = new BrowserProvider(window.ethereum);
+  const contract = new Contract(
+    contractAddress,
+    getFHERaffleABI(),
+    provider
+  );
+
+  const entered = await contract.hasEntered(raffleId, participant);
+  return entered;
+}
+
