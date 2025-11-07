@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trophy, Ticket } from "lucide-react";
+import { ArrowLeft, Trophy, Ticket, Lock, Unlock } from "lucide-react";
 import Header from "@/components/Header";
 import { toast } from "sonner";
 import { getRaffleCount, getRaffleMeta, hasEntered, getUserEntryAmount } from "@/lib/contractUtils";
@@ -35,6 +35,7 @@ export default function MyRaffles() {
   const [createdRaffles, setCreatedRaffles] = useState<Raffle[]>([]);
   const [myEntries, setMyEntries] = useState<Raffle[]>([]);
   const [decryptedAmounts, setDecryptedAmounts] = useState<{[key: string]: number}>({});
+  const [decryptingStates, setDecryptingStates] = useState<{[key: string]: boolean}>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -85,8 +86,7 @@ export default function MyRaffles() {
             const entered = await hasEntered(i, address, chainId);
             if (entered) {
               entries.push(raffle);
-              // Decrypt the user's entry amount
-              await decryptUserEntryAmount(i, address);
+              // Don't auto-decrypt, let user manually decrypt for privacy
             }
           } catch (error) {
             console.error(`Error checking entry for raffle ${i}:`, error);
@@ -106,30 +106,64 @@ export default function MyRaffles() {
   };
 
   const decryptUserEntryAmount = async (raffleId: number, userAddress: string) => {
-    if (!zamaInstance) {
-      // If no FHE instance, show that amount is private
-      setDecryptedAmounts(prev => ({
-        ...prev,
-        [`${raffleId}-${userAddress}`]: -1 // Special value indicating amount is private
-      }));
-      return;
-    }
+    const key = `${raffleId}-${userAddress}`;
+
+    // Set decrypting state
+    setDecryptingStates(prev => ({
+      ...prev,
+      [key]: true
+    }));
 
     try {
-      const encryptedAmount = await getUserEntryAmount(raffleId, userAddress, chainId);
-      if (encryptedAmount) {
-        // For now, we'll show that the amount is encrypted and private
-        // Full decryption would require proper FHE setup and user permission
+      if (!zamaInstance) {
+        toast.error("FHE service not available. Cannot decrypt amount.");
         setDecryptedAmounts(prev => ({
           ...prev,
-          [`${raffleId}-${userAddress}`]: -1 // Indicates amount is encrypted/private
+          [key]: -1 // Special value indicating amount is private
+        }));
+        return;
+      }
+
+      const encryptedAmount = await getUserEntryAmount(raffleId, userAddress, chainId);
+      if (encryptedAmount) {
+        try {
+          // Attempt to decrypt the amount using FHE
+          const decrypted = await zamaInstance.decrypt(Number(chainId), encryptedAmount);
+          const amountInEth = Number(decrypted) / 1e18;
+
+          setDecryptedAmounts(prev => ({
+            ...prev,
+            [key]: amountInEth
+          }));
+
+          toast.success(`Successfully decrypted your entry amount: ${amountInEth.toFixed(4)} ETH`);
+        } catch (decryptError) {
+          console.error('Decryption failed:', decryptError);
+          toast.error("Failed to decrypt amount. You may not have permission or FHE setup is incomplete.");
+          setDecryptedAmounts(prev => ({
+            ...prev,
+            [key]: -1 // Indicates decryption failed
+          }));
+        }
+      } else {
+        toast.error("Could not find your entry in this raffle.");
+        setDecryptedAmounts(prev => ({
+          ...prev,
+          [key]: -1
         }));
       }
     } catch (error) {
       console.error(`Error accessing entry amount for raffle ${raffleId}:`, error);
+      toast.error("Failed to access encrypted entry data.");
       setDecryptedAmounts(prev => ({
         ...prev,
-        [`${raffleId}-${userAddress}`]: -1 // Error state
+        [key]: -1 // Error state
+      }));
+    } finally {
+      // Clear decrypting state
+      setDecryptingStates(prev => ({
+        ...prev,
+        [key]: false
       }));
     }
   };
@@ -315,14 +349,55 @@ export default function MyRaffles() {
                           {getTimeRemaining(raffle.expireAt)}
                         </span>
                       </div>
-                      <div className="p-2 bg-primary/5 rounded text-xs text-center space-y-1">
-                        <div>Entry encrypted with FHE 🔒</div>
-                        <div className="text-muted-foreground">
-                          {decryptedAmounts[`${raffle.id}-${address}`] === -1 ?
-                            'Amount kept private 🔒' :
-                            decryptedAmounts[`${raffle.id}-${address}`] ?
-                              `Your entry amount: ${decryptedAmounts[`${raffle.id}-${address}`].toFixed(4)} ETH` :
-                              'Decrypting...'}
+                      <div className="p-2 bg-primary/5 rounded text-xs space-y-2">
+                        <div className="text-center">
+                          {decryptedAmounts[`${raffle.id}-${address}`] === undefined ? (
+                            <>
+                              <div className="flex items-center justify-center gap-1 mb-1">
+                                <Lock className="h-3 w-3" />
+                                <span>Entry encrypted with FHE 🔒</span>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full h-6 text-xs"
+                                onClick={() => decryptUserEntryAmount(raffle.id, address!)}
+                                disabled={decryptingStates[`${raffle.id}-${address}`]}
+                              >
+                                {decryptingStates[`${raffle.id}-${address}`] ? (
+                                  <>
+                                    <Lock className="h-3 w-3 mr-1 animate-spin" />
+                                    Decrypting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Unlock className="h-3 w-3 mr-1" />
+                                    Decrypt Amount
+                                  </>
+                                )}
+                              </Button>
+                            </>
+                          ) : decryptedAmounts[`${raffle.id}-${address}`] === -1 ? (
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1 mb-1">
+                                <Lock className="h-3 w-3" />
+                                <span>Amount kept private 🔒</span>
+                              </div>
+                              <div className="text-muted-foreground text-xs">
+                                Cannot decrypt at this time
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1 mb-1">
+                                <Unlock className="h-3 w-3" />
+                                <span>Entry decrypted ✅</span>
+                              </div>
+                              <div className="font-semibold text-primary">
+                                Your entry: {decryptedAmounts[`${raffle.id}-${address}`]?.toFixed(4)} ETH
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardContent>
