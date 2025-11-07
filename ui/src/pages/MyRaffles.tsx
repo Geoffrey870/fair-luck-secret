@@ -172,10 +172,17 @@ export default function MyRaffles() {
           // Try a simpler decryption approach
           try {
             console.log('🔄 Attempting direct decryption...');
-            // Try using the handle directly
+
+            // Convert bigint to proper 32-byte hex handle for direct decryption too
+            let directHandleHex = encryptedAmount.toString(16);
+            directHandleHex = directHandleHex.padStart(64, '0');
+            const directHandle = '0x' + directHandleHex;
+
+            console.log('🔧 Direct handle:', directHandle);
+
             const result = await zamaInstance.userDecrypt(
               [{
-                handle: encryptedAmount,
+                handle: directHandle,
                 contractAddress: contractAddress,
               }],
               keypair.privateKey,
@@ -188,7 +195,7 @@ export default function MyRaffles() {
             );
 
             console.log('🎉 Direct decryption result:', result);
-            const decrypted = result[encryptedAmount];
+            const decrypted = result[directHandle];
             console.log('💰 Direct decrypted value:', decrypted);
 
             if (decrypted !== undefined) {
@@ -201,9 +208,21 @@ export default function MyRaffles() {
             console.log('❌ Direct decryption failed, trying full EIP712 flow:', directError.message);
 
             // Prepare decryption request with full EIP712 flow
+            console.log('🔍 Raw encrypted amount:', encryptedAmount);
+            console.log('🔍 Encrypted amount type:', typeof encryptedAmount);
+
+            // Convert bigint to proper 32-byte hex handle
+            let handleHex = encryptedAmount.toString(16);
+            // Ensure it's 64 characters (32 bytes)
+            handleHex = handleHex.padStart(64, '0');
+            const handle = '0x' + handleHex;
+
+            console.log('🔧 Processed handle:', handle);
+            console.log('🔧 Handle length:', handle.length);
+
             const handleContractPairs = [
               {
-                handle: encryptedAmount.toString(),
+                handle: handle,
                 contractAddress: contractAddress,
               },
             ];
@@ -269,7 +288,7 @@ export default function MyRaffles() {
             );
 
             console.log('🎉 Signed decryption result:', result);
-            const decrypted = result[encryptedAmount.toString()];
+            const decrypted = result[handle];
             console.log('💰 Signed decrypted value:', decrypted);
 
             if (decrypted === undefined) {
