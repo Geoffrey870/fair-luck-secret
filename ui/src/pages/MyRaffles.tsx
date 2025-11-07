@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import { toast } from "sonner";
 import { getRaffleCount, getRaffleMeta, hasEntered, getUserEntryAmount } from "@/lib/contractUtils";
 import { useZamaInstance } from "@/hooks/useZamaInstance";
+import { useEthersSigner } from "@/hooks/useEthersSigner";
 
 interface Raffle {
   id: number;
@@ -32,6 +33,7 @@ export default function MyRaffles() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { instance: zamaInstance } = useZamaInstance();
+  const signerPromise = useEthersSigner();
   const [createdRaffles, setCreatedRaffles] = useState<Raffle[]>([]);
   const [myEntries, setMyEntries] = useState<Raffle[]>([]);
   const [decryptedAmounts, setDecryptedAmounts] = useState<{[key: string]: number}>({});
@@ -134,9 +136,31 @@ export default function MyRaffles() {
 
       if (encryptedAmount) {
         console.log('🔐 Attempting FHE decryption...');
+        console.log('🔍 Available methods on zamaInstance:', Object.getOwnPropertyNames(zamaInstance));
+        console.log('🔍 Zama instance type:', typeof zamaInstance);
+
         try {
-          console.log('🔑 Calling zamaInstance.decrypt with chainId:', Number(chainId), 'encryptedAmount:', encryptedAmount);
-          const decrypted = await zamaInstance.decrypt(Number(chainId), encryptedAmount);
+          // Try different possible method names for decryption
+          let decrypted;
+          if (typeof zamaInstance.decrypt === 'function') {
+            console.log('📝 Using decrypt method');
+            decrypted = await zamaInstance.decrypt(Number(chainId), encryptedAmount);
+          } else if (typeof zamaInstance.decryptValue === 'function') {
+            console.log('📝 Using decryptValue method');
+            decrypted = await zamaInstance.decryptValue(encryptedAmount);
+          } else if (typeof zamaInstance.reencrypt === 'function') {
+            console.log('📝 Using reencrypt method');
+            const signer = await signerPromise;
+            if (signer) {
+              decrypted = await zamaInstance.reencrypt(encryptedAmount, await signer.getAddress());
+            } else {
+              throw new Error('No signer available for reencryption');
+            }
+          } else {
+            console.log('❌ Available methods:', Object.getOwnPropertyNames(zamaInstance));
+            throw new Error('No decryption method found on FHE instance');
+          }
+
           console.log('🎉 Decryption successful, raw result:', decrypted);
 
           const amountInEth = Number(decrypted) / 1e18;
