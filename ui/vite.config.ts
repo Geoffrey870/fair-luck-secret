@@ -16,13 +16,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    include: ['@zama-fhe/relayer-sdk'],
-    exclude: [],
-  },
-  build: {
-    commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true,
-    },
+    exclude: ['@zama-fhe/relayer-sdk'], // Exclude from optimization since it uses dynamic imports
   },
 }));
