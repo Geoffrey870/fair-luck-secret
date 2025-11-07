@@ -78,12 +78,18 @@ export async function hasEntered(raffleId: number, participant: string, chainId?
 }
 
 export async function getUserEntryAmount(raffleId: number, participant: string, chainId?: number): Promise<any | null> {
+  console.log('🔍 getUserEntryAmount called with:', { raffleId, participant, chainId });
+
   if (typeof window === 'undefined' || !window.ethereum) {
+    console.warn('⚠️ No window.ethereum available');
     return null;
   }
 
   const contractAddress = chainId ? getContractAddress(chainId) : undefined;
+  console.log('🏠 Contract address for chain', chainId, ':', contractAddress);
+
   if (!contractAddress) {
+    console.warn('⚠️ No contract address found for chain', chainId);
     return null;
   }
 
@@ -93,6 +99,7 @@ export async function getUserEntryAmount(raffleId: number, participant: string, 
     getFHERaffleABI(),
     provider
   );
+  console.log('📝 Contract instance created for address:', contractAddress);
 
   try {
     // Since we don't have getEntryCount in ABI, we'll try a different approach
@@ -101,25 +108,36 @@ export async function getUserEntryAmount(raffleId: number, participant: string, 
 
     let entryIndex = 0;
     const maxAttempts = 1000; // Reasonable limit to prevent infinite loops
+    console.log('🔄 Starting entry search for user', participant, 'in raffle', raffleId);
 
     while (entryIndex < maxAttempts) {
       try {
+        console.log('🔍 Checking entry at index', entryIndex);
         const entry = await contract.getEntry(raffleId, entryIndex);
+        console.log('📋 Entry found:', {
+          index: entryIndex,
+          participant: entry.participant,
+          encAmount: entry.encAmount,
+          createdAt: entry.createdAt
+        });
+
         if (entry.participant.toLowerCase() === participant.toLowerCase()) {
-          // Found user's entry, return the encrypted amount
+          console.log('✅ Found matching entry for user at index', entryIndex);
           return entry.encAmount; // This is euint32
         }
         entryIndex++;
       } catch (entryError) {
+        console.log('🚫 Entry lookup failed at index', entryIndex, '- likely end of array:', entryError.message);
         // If we get an error calling getEntry, it likely means we've exceeded the array bounds
         // This is our way of detecting when we've checked all entries
         break;
       }
     }
 
+    console.log('❌ No entry found for user', participant, 'in raffle', raffleId);
     return null; // User hasn't entered this raffle
   } catch (error) {
-    console.error('Error getting user entry amount:', error);
+    console.error('❌ Error getting user entry amount:', error);
     return null;
   }
 }

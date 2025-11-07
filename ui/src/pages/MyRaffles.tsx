@@ -107,6 +107,7 @@ export default function MyRaffles() {
 
   const decryptUserEntryAmount = async (raffleId: number, userAddress: string) => {
     const key = `${raffleId}-${userAddress}`;
+    console.log('🔓 Starting decryption process for raffle', raffleId, 'user', userAddress);
 
     // Set decrypting state
     setDecryptingStates(prev => ({
@@ -115,7 +116,9 @@ export default function MyRaffles() {
     }));
 
     try {
+      console.log('🔍 Checking FHE instance availability...');
       if (!zamaInstance) {
+        console.error('❌ FHE instance not available');
         toast.error("FHE service not available. Cannot decrypt amount.");
         setDecryptedAmounts(prev => ({
           ...prev,
@@ -123,13 +126,21 @@ export default function MyRaffles() {
         }));
         return;
       }
+      console.log('✅ FHE instance is available');
 
+      console.log('📡 Fetching encrypted entry amount from contract...');
       const encryptedAmount = await getUserEntryAmount(raffleId, userAddress, chainId);
+      console.log('📦 Encrypted amount result:', encryptedAmount);
+
       if (encryptedAmount) {
+        console.log('🔐 Attempting FHE decryption...');
         try {
-          // Attempt to decrypt the amount using FHE
+          console.log('🔑 Calling zamaInstance.decrypt with chainId:', Number(chainId), 'encryptedAmount:', encryptedAmount);
           const decrypted = await zamaInstance.decrypt(Number(chainId), encryptedAmount);
+          console.log('🎉 Decryption successful, raw result:', decrypted);
+
           const amountInEth = Number(decrypted) / 1e18;
+          console.log('💰 Converted to ETH:', amountInEth);
 
           setDecryptedAmounts(prev => ({
             ...prev,
@@ -137,8 +148,14 @@ export default function MyRaffles() {
           }));
 
           toast.success(`Successfully decrypted your entry amount: ${amountInEth.toFixed(4)} ETH`);
+          console.log('✅ Decryption process completed successfully');
         } catch (decryptError) {
-          console.error('Decryption failed:', decryptError);
+          console.error('❌ Decryption failed with error:', decryptError);
+          console.error('❌ Error details:', {
+            message: decryptError.message,
+            stack: decryptError.stack,
+            name: decryptError.name
+          });
           toast.error("Failed to decrypt amount. You may not have permission or FHE setup is incomplete.");
           setDecryptedAmounts(prev => ({
             ...prev,
@@ -146,6 +163,7 @@ export default function MyRaffles() {
           }));
         }
       } else {
+        console.warn('⚠️ No encrypted amount found for user in this raffle');
         toast.error("Could not find your entry in this raffle.");
         setDecryptedAmounts(prev => ({
           ...prev,
@@ -153,7 +171,12 @@ export default function MyRaffles() {
         }));
       }
     } catch (error) {
-      console.error(`Error accessing entry amount for raffle ${raffleId}:`, error);
+      console.error(`❌ Error accessing entry amount for raffle ${raffleId}:`, error);
+      console.error('❌ Access error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       toast.error("Failed to access encrypted entry data.");
       setDecryptedAmounts(prev => ({
         ...prev,
@@ -165,6 +188,7 @@ export default function MyRaffles() {
         ...prev,
         [key]: false
       }));
+      console.log('🏁 Decryption process finished');
     }
   };
 
