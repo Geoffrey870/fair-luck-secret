@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,30 +27,31 @@ interface Raffle {
 export default function MyRaffles() {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const [createdRaffles, setCreatedRaffles] = useState<Raffle[]>([]);
   const [myEntries, setMyEntries] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isConnected && address) {
+    if (isConnected && address && chainId) {
       fetchMyRaffles();
     } else {
       setLoading(false);
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, chainId]);
 
   const fetchMyRaffles = async () => {
-    if (!address) return;
+    if (!address || !chainId) return;
 
     try {
       setLoading(true);
-      const count = await getRaffleCount();
+      const count = await getRaffleCount(chainId);
       const created: Raffle[] = [];
       const entries: Raffle[] = [];
 
       for (let i = 0; i < count; i++) {
         try {
-          const meta = await getRaffleMeta(i);
+          const meta = await getRaffleMeta(i, chainId);
           if (!meta) continue;
 
           const raffle: Raffle = {

@@ -96,7 +96,7 @@ const RaffleBoard = () => {
   const fetchRaffleMeta = async (raffleId: number): Promise<RaffleMeta | null> => {
     try {
       const { getRaffleMeta } = await import('@/lib/contractUtils');
-      return await getRaffleMeta(raffleId, chainId);
+      return await getRaffleMeta(raffleId, chainId || undefined);
     } catch (error) {
       console.error(`Error fetching raffle ${raffleId}:`, error);
       return null;
