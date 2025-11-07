@@ -14,6 +14,16 @@ The live demo is deployed on Vercel and connected to Sepolia testnet. You can:
 - Decrypt your entry amounts using FHE
 - Experience complete privacy protection
 
+### How to Test
+
+1. **Connect Wallet**: Click "Connect Wallet" and select MetaMask
+2. **Switch to Sepolia**: Ensure you're on Sepolia testnet
+3. **Create Raffle**: Fill in raffle details and submit
+4. **Enter Raffle**: Choose an entry amount and encrypt it
+5. **Decrypt Amount**: View your encrypted entry and decrypt it
+
+**Note**: You'll need test ETH on Sepolia. Get it from [Sepolia Faucet](https://sepoliafaucet.com/)
+
 ## 🎥 Demo Video
 
 Watch the full demo: **[fair-luck-secret.mov](https://github.com/Geoffrey870/fair-luck-secret/blob/main/fair-luck-secret.mov)** (11MB)
