@@ -140,26 +140,66 @@ export default function MyRaffles() {
         console.log('🔍 Zama instance type:', typeof zamaInstance);
 
         try {
-          // Try different possible method names for decryption
-          let decrypted;
-          if (typeof zamaInstance.decrypt === 'function') {
-            console.log('📝 Using decrypt method');
-            decrypted = await zamaInstance.decrypt(Number(chainId), encryptedAmount);
-          } else if (typeof zamaInstance.decryptValue === 'function') {
-            console.log('📝 Using decryptValue method');
-            decrypted = await zamaInstance.decryptValue(encryptedAmount);
-          } else if (typeof zamaInstance.reencrypt === 'function') {
-            console.log('📝 Using reencrypt method');
-            const signer = await signerPromise;
-            if (signer) {
-              decrypted = await zamaInstance.reencrypt(encryptedAmount, await signer.getAddress());
-            } else {
-              throw new Error('No signer available for reencryption');
-            }
-          } else {
-            console.log('❌ Available methods:', Object.getOwnPropertyNames(zamaInstance));
-            throw new Error('No decryption method found on FHE instance');
+          // Generate keypair for decryption
+          console.log('🔑 Generating keypair for decryption...');
+          const keypair = zamaInstance.generateKeypair();
+          console.log('✅ Keypair generated');
+
+          // Prepare decryption request
+          const handleContractPairs = [
+            {
+              handle: encryptedAmount.toString(),
+              contractAddress: contractAddress,
+            },
+          ];
+
+          const startTimeStamp = Math.floor(Date.now() / 1000).toString();
+          const durationDays = "10";
+          const contractAddresses = [contractAddress];
+
+          // Create EIP712 typed data
+          console.log('📝 Creating EIP712 typed data...');
+          const eip712 = zamaInstance.createEIP712(
+            keypair.publicKey,
+            contractAddresses,
+            startTimeStamp,
+            durationDays
+          );
+          console.log('✅ EIP712 data created');
+
+          // Get signer and sign typed data
+          const signer = await signerPromise;
+          if (!signer) {
+            throw new Error('No signer available for signature');
           }
+
+          console.log('✍️ Requesting user signature...');
+          const signature = await signer.signTypedData({
+            domain: eip712.domain,
+            types: {
+              UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification,
+            },
+            primaryType: 'UserDecryptRequestVerification',
+            message: eip712.message
+          });
+          console.log('✅ User signature obtained');
+
+          // Execute decryption
+          console.log('🔓 Executing user decryption...');
+          const result = await zamaInstance.userDecrypt(
+            handleContractPairs,
+            keypair.privateKey,
+            keypair.publicKey,
+            signature.replace("0x", ""),
+            contractAddresses,
+            address!,
+            startTimeStamp,
+            durationDays
+          );
+
+          console.log('🎉 Decryption result:', result);
+          const decrypted = result[encryptedAmount.toString()];
+          console.log('💰 Final decrypted value:', decrypted);
 
           console.log('🎉 Decryption successful, raw result:', decrypted);
 
