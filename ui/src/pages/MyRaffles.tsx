@@ -157,66 +157,109 @@ export default function MyRaffles() {
         console.log('🔍 Zama instance type:', typeof zamaInstance);
 
         try {
+          // First, try a simpler approach - check if we can decrypt without signature
+          console.log('🔍 Checking if simple decryption is possible...');
+
+          // For debugging, try to use the encrypted amount directly
+          console.log('🔑 Encrypted amount type:', typeof encryptedAmount);
+          console.log('🔑 Encrypted amount value:', encryptedAmount);
+
           // Generate keypair for decryption
           console.log('🔑 Generating keypair for decryption...');
           const keypair = zamaInstance.generateKeypair();
           console.log('✅ Keypair generated');
 
-          // Prepare decryption request
-          const handleContractPairs = [
-            {
-              handle: encryptedAmount.toString(),
-              contractAddress: contractAddress,
-            },
-          ];
+          // Try a simpler decryption approach
+          try {
+            console.log('🔄 Attempting direct decryption...');
+            // Try using the handle directly
+            const result = await zamaInstance.userDecrypt(
+              [{
+                handle: encryptedAmount,
+                contractAddress: contractAddress,
+              }],
+              keypair.privateKey,
+              keypair.publicKey,
+              "", // empty signature for testing
+              [contractAddress],
+              address!,
+              Math.floor(Date.now() / 1000).toString(),
+              "1" // shorter duration for testing
+            );
 
-          const startTimeStamp = Math.floor(Date.now() / 1000).toString();
-          const durationDays = "10";
-          const contractAddresses = [contractAddress];
+            console.log('🎉 Direct decryption result:', result);
+            const decrypted = result[encryptedAmount];
+            console.log('💰 Direct decrypted value:', decrypted);
 
-          // Create EIP712 typed data
-          console.log('📝 Creating EIP712 typed data...');
-          const eip712 = zamaInstance.createEIP712(
-            keypair.publicKey,
-            contractAddresses,
-            startTimeStamp,
-            durationDays
-          );
-          console.log('✅ EIP712 data created');
+            if (decrypted !== undefined) {
+              const amountInEth = Number(decrypted) / 1e18;
+              console.log('✅ Using direct decryption result');
+            } else {
+              throw new Error('Direct decryption returned undefined');
+            }
+          } catch (directError) {
+            console.log('❌ Direct decryption failed, trying full EIP712 flow:', directError.message);
 
-          // Get signer and sign typed data
-          const signer = await signerPromise;
-          if (!signer) {
-            throw new Error('No signer available for signature');
+            // Prepare decryption request with full EIP712 flow
+            const handleContractPairs = [
+              {
+                handle: encryptedAmount.toString(),
+                contractAddress: contractAddress,
+              },
+            ];
+
+            const startTimeStamp = Math.floor(Date.now() / 1000).toString();
+            const durationDays = "10";
+            const contractAddresses = [contractAddress];
+
+            // Create EIP712 typed data
+            console.log('📝 Creating EIP712 typed data...');
+            const eip712 = zamaInstance.createEIP712(
+              keypair.publicKey,
+              contractAddresses,
+              startTimeStamp,
+              durationDays
+            );
+            console.log('✅ EIP712 data created');
+
+            // Get signer and sign typed data
+            const signer = await signerPromise;
+            if (!signer) {
+              throw new Error('No signer available for signature');
+            }
+
+            console.log('✍️ Requesting user signature...');
+            const signature = await signer.signTypedData({
+              domain: eip712.domain,
+              types: {
+                UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification,
+              },
+              primaryType: 'UserDecryptRequestVerification',
+              message: eip712.message
+            });
+            console.log('✅ User signature obtained');
+
+            // Execute decryption
+            console.log('🔓 Executing user decryption with signature...');
+            const result = await zamaInstance.userDecrypt(
+              handleContractPairs,
+              keypair.privateKey,
+              keypair.publicKey,
+              signature.replace("0x", ""),
+              contractAddresses,
+              address!,
+              startTimeStamp,
+              durationDays
+            );
+
+            console.log('🎉 Signed decryption result:', result);
+            const decrypted = result[encryptedAmount.toString()];
+            console.log('💰 Signed decrypted value:', decrypted);
+
+            if (decrypted === undefined) {
+              throw new Error('Signed decryption returned undefined');
+            }
           }
-
-          console.log('✍️ Requesting user signature...');
-          const signature = await signer.signTypedData({
-            domain: eip712.domain,
-            types: {
-              UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification,
-            },
-            primaryType: 'UserDecryptRequestVerification',
-            message: eip712.message
-          });
-          console.log('✅ User signature obtained');
-
-          // Execute decryption
-          console.log('🔓 Executing user decryption...');
-          const result = await zamaInstance.userDecrypt(
-            handleContractPairs,
-            keypair.privateKey,
-            keypair.publicKey,
-            signature.replace("0x", ""),
-            contractAddresses,
-            address!,
-            startTimeStamp,
-            durationDays
-          );
-
-          console.log('🎉 Decryption result:', result);
-          const decrypted = result[encryptedAmount.toString()];
-          console.log('💰 Final decrypted value:', decrypted);
 
           console.log('🎉 Decryption successful, raw result:', decrypted);
 
