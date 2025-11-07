@@ -1,8 +1,18 @@
 # FHE Raffle - Encrypted On-Chain Raffle System
 
-[![Demo Video](https://img.shields.io/badge/Demo-Video-blue)](https://github.com/Geoffrey870/fair-luck-secret/blob/main/fair-luck-secret.mov)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-green)](https://fair-luck-secret.vercel.app/) [![Demo Video](https://img.shields.io/badge/Demo-Video-blue)](https://github.com/Geoffrey870/fair-luck-secret/blob/main/fair-luck-secret.mov)
 
 A decentralized raffle system built with Fully Homomorphic Encryption (FHE) that ensures complete privacy of entry amounts until the draw is completed. Entry amounts remain encrypted throughout the raffle process and can only be decrypted by the participants themselves.
+
+## 🌐 Live Demo
+
+**Try it now:** **[fair-luck-secret.vercel.app](https://fair-luck-secret.vercel.app/)**
+
+The live demo is deployed on Vercel and connected to Sepolia testnet. You can:
+- Create raffles with encrypted entry amounts
+- Enter raffles using MetaMask or Rainbow wallet
+- Decrypt your entry amounts using FHE
+- Experience complete privacy protection
 
 ## 🎥 Demo Video
 
