@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { getRaffleCount, getRaffleMeta, hasEntered, getUserEntryAmount } from "@/lib/contractUtils";
 import { useZamaInstance } from "@/hooks/useZamaInstance";
 import { useEthersSigner } from "@/hooks/useEthersSigner";
+import { getContractAddress } from "@/config/contracts";
 
 interface Raffle {
   id: number;
