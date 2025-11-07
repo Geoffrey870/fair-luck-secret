@@ -14,6 +14,16 @@ export function useZamaInstance() {
         setIsLoading(true);
         setError(null);
 
+        // Wait for CDN script to load if needed
+        if (typeof window !== 'undefined' && !(window as any).relayerSDK) {
+          console.warn('FHE SDK CDN script not loaded, waiting...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          if (!(window as any).relayerSDK) {
+            throw new Error('FHE SDK CDN script not loaded. Please check network connection and ensure the CDN script is included in index.html');
+          }
+        }
+
         console.log('Initializing FHE SDK...');
         await initSDK();
         console.log('FHE SDK initialized successfully');
