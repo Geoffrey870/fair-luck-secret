@@ -111,6 +111,23 @@ export default function MyRaffles() {
     const key = `${raffleId}-${userAddress}`;
     console.log('🔓 Starting decryption process for raffle', raffleId, 'user', userAddress);
 
+    const contractAddress = getContractAddress(chainId);
+    console.log('🏠 Contract address for decryption:', contractAddress);
+
+    if (!contractAddress) {
+      console.error('❌ No contract address found for chain', chainId);
+      toast.error("Contract not deployed on current network. Cannot decrypt amount.");
+      setDecryptedAmounts(prev => ({
+        ...prev,
+        [key]: -1
+      }));
+      setDecryptingStates(prev => ({
+        ...prev,
+        [key]: false
+      }));
+      return;
+    }
+
     // Set decrypting state
     setDecryptingStates(prev => ({
       ...prev,
