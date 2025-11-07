@@ -30,25 +30,27 @@ if (!fs.existsSync(dir)) {
 const deploymentsDir = path.join(dir, "deployments/localhost");
 
 function readDeployment(chainName, chainId, contractName, optional) {
-  const chainDeploymentDir = path.join(deploymentsDir, chainName);
+  // For localhost, the deployment file is directly in deployments/localhost/
+  const deploymentFile = path.join(deploymentsDir, `${contractName}.json`);
 
-  if (!fs.existsSync(chainDeploymentDir)) {
+  if (!fs.existsSync(deploymentFile)) {
+    console.error(
+      `${line}Unable to locate '${deploymentFile}' file.\n\n1. Goto '${dirname}' directory\n2. Run 'npx hardhat deploy --network localhost'.${line}`
+    );
     if (!optional) {
-      console.error(
-        `${line}Unable to locate '${chainDeploymentDir}' directory.\n\n1. Goto '${dirname}' directory\n2. Run 'npx hardhat deploy --network ${chainName}'.${line}`
-      );
-      if (!optional) {
+      console.error(`${line}Attempting auto-deployment...${line}`);
+      try {
+        execSync(`cd "${dir}" && npx hardhat deploy --network localhost`, { stdio: 'inherit' });
+      } catch (e) {
+        console.error(`${line}Auto-deployment failed: ${e.message}${line}`);
         process.exit(1);
       }
+    } else {
+      return undefined;
     }
-    return undefined;
   }
 
-  const jsonString = fs.readFileSync(
-    path.join(chainDeploymentDir, `${contractName}.json`),
-    "utf-8"
-  );
-
+  const jsonString = fs.readFileSync(deploymentFile, "utf-8");
   const obj = JSON.parse(jsonString);
   obj.chainId = chainId;
 
