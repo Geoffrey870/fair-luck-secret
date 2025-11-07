@@ -156,6 +156,8 @@ export default function MyRaffles() {
         console.log('🔍 Available methods on zamaInstance:', Object.getOwnPropertyNames(zamaInstance));
         console.log('🔍 Zama instance type:', typeof zamaInstance);
 
+        let decryptedValue: bigint | undefined;
+
         try {
           // First, try a simpler approach - check if we can decrypt without signature
           console.log('🔍 Checking if simple decryption is possible...');
@@ -195,11 +197,10 @@ export default function MyRaffles() {
             );
 
             console.log('🎉 Direct decryption result:', result);
-            const decrypted = result[directHandle];
-            console.log('💰 Direct decrypted value:', decrypted);
+            decryptedValue = result[directHandle];
+            console.log('💰 Direct decrypted value:', decryptedValue);
 
-            if (decrypted !== undefined) {
-              const amountInEth = Number(decrypted) / 1e18;
+            if (decryptedValue !== undefined) {
               console.log('✅ Using direct decryption result');
             } else {
               throw new Error('Direct decryption returned undefined');
@@ -288,26 +289,14 @@ export default function MyRaffles() {
             );
 
             console.log('🎉 Signed decryption result:', result);
-            const decrypted = result[handle];
-            console.log('💰 Signed decrypted value:', decrypted);
+            decryptedValue = result[handle];
+            console.log('💰 Signed decrypted value:', decryptedValue);
 
-            if (decrypted === undefined) {
+            if (decryptedValue === undefined) {
               throw new Error('Signed decryption returned undefined');
             }
           }
 
-          console.log('🎉 Decryption successful, raw result:', decrypted);
-
-          const amountInEth = Number(decrypted) / 1e18;
-          console.log('💰 Converted to ETH:', amountInEth);
-
-          setDecryptedAmounts(prev => ({
-            ...prev,
-            [key]: amountInEth
-          }));
-
-          toast.success(`Successfully decrypted your entry amount: ${amountInEth.toFixed(4)} ETH`);
-          console.log('✅ Decryption process completed successfully');
         } catch (decryptError) {
           console.error('❌ Decryption failed with error:', decryptError);
           console.error('❌ Error details:', {
@@ -320,6 +309,22 @@ export default function MyRaffles() {
             ...prev,
             [key]: -1 // Indicates decryption failed
           }));
+        }
+
+        // Only update UI if decryption was successful
+        if (decryptedValue !== undefined) {
+          console.log('🎉 Decryption successful, raw result:', decryptedValue);
+
+          const amountInEth = Number(decryptedValue) / 1e18;
+          console.log('💰 Converted to ETH:', amountInEth);
+
+          setDecryptedAmounts(prev => ({
+            ...prev,
+            [key]: amountInEth
+          }));
+
+          toast.success(`Successfully decrypted your entry amount: ${amountInEth.toFixed(6)} ETH`);
+          console.log('✅ Decryption process completed successfully');
         }
       } else {
         console.warn('⚠️ No encrypted amount found for user in this raffle');
