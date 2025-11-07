@@ -2,12 +2,11 @@
 pragma solidity ^0.8.24;
 
 import {FHE, euint32, externalEuint32} from "@fhevm/solidity/lib/FHE.sol";
-import {SepoliaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 /// @title FHERaffle - Encrypted Raffle System with FHE
 /// @notice A raffle system where entry amounts are encrypted using FHE until the draw
 /// @dev Entry amounts are stored as encrypted euint32 values
-contract FHERaffle is SepoliaConfig {
+contract FHERaffle {
     struct Raffle {
         address creator;
         string title;
