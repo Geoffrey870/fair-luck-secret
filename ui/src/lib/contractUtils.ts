@@ -77,3 +77,41 @@ export async function hasEntered(raffleId: number, participant: string, chainId?
   return entered;
 }
 
+export async function getUserEntryAmount(raffleId: number, participant: string, chainId?: number): Promise<number | null> {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    return null;
+  }
+
+  const contractAddress = chainId ? getContractAddress(chainId) : undefined;
+  if (!contractAddress) {
+    return null;
+  }
+
+  const provider = new BrowserProvider(window.ethereum);
+  const contract = new Contract(
+    contractAddress,
+    getFHERaffleABI(),
+    provider
+  );
+
+  try {
+    // Get entry count for this raffle
+    const entryCount = await contract.getEntryCount(raffleId);
+
+    // Find the user's entry by iterating through all entries
+    for (let i = 0; i < Number(entryCount); i++) {
+      const entry = await contract.getEntry(raffleId, i);
+      if (entry.participant.toLowerCase() === participant.toLowerCase()) {
+        // Found user's entry, return the encrypted amount
+        // Note: This returns the raw encrypted value, frontend needs to decrypt it
+        return entry.encAmount;
+      }
+    }
+
+    return null; // User hasn't entered this raffle
+  } catch (error) {
+    console.error('Error getting user entry amount:', error);
+    return null;
+  }
+}
+

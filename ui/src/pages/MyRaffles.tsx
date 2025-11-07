@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy, Ticket } from "lucide-react";
 import Header from "@/components/Header";
 import { toast } from "sonner";
-import { getRaffleCount, getRaffleMeta, hasEntered } from "@/lib/contractUtils";
+import { getRaffleCount, getRaffleMeta, hasEntered, getUserEntryAmount } from "@/lib/contractUtils";
+import { useZamaInstance } from "@/hooks/useZamaInstance";
 
 interface Raffle {
   id: number;
@@ -30,8 +31,10 @@ export default function MyRaffles() {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const { instance: zamaInstance } = useZamaInstance();
   const [createdRaffles, setCreatedRaffles] = useState<Raffle[]>([]);
   const [myEntries, setMyEntries] = useState<Raffle[]>([]);
+  const [decryptedAmounts, setDecryptedAmounts] = useState<{[key: string]: number}>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -82,6 +85,8 @@ export default function MyRaffles() {
             const entered = await hasEntered(i, address, chainId);
             if (entered) {
               entries.push(raffle);
+              // Decrypt the user's entry amount
+              await decryptUserEntryAmount(i, address);
             }
           } catch (error) {
             console.error(`Error checking entry for raffle ${i}:`, error);
@@ -97,6 +102,35 @@ export default function MyRaffles() {
       toast.error(error.message || "Failed to load raffles");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const decryptUserEntryAmount = async (raffleId: number, userAddress: string) => {
+    if (!zamaInstance) {
+      // If no FHE instance, show that amount is private
+      setDecryptedAmounts(prev => ({
+        ...prev,
+        [`${raffleId}-${userAddress}`]: -1 // Special value indicating amount is private
+      }));
+      return;
+    }
+
+    try {
+      const encryptedAmount = await getUserEntryAmount(raffleId, userAddress, chainId);
+      if (encryptedAmount) {
+        // For now, we'll show that the amount is encrypted and private
+        // Full decryption would require proper FHE setup and user permission
+        setDecryptedAmounts(prev => ({
+          ...prev,
+          [`${raffleId}-${userAddress}`]: -1 // Indicates amount is encrypted/private
+        }));
+      }
+    } catch (error) {
+      console.error(`Error accessing entry amount for raffle ${raffleId}:`, error);
+      setDecryptedAmounts(prev => ({
+        ...prev,
+        [`${raffleId}-${userAddress}`]: -1 // Error state
+      }));
     }
   };
 
@@ -284,7 +318,11 @@ export default function MyRaffles() {
                       <div className="p-2 bg-primary/5 rounded text-xs text-center space-y-1">
                         <div>Entry encrypted with FHE 🔒</div>
                         <div className="text-muted-foreground">
-                          Your entry amount: {Number(raffle.entryFee) / 1e18} ETH
+                          {decryptedAmounts[`${raffle.id}-${address}`] === -1 ?
+                            'Amount kept private 🔒' :
+                            decryptedAmounts[`${raffle.id}-${address}`] ?
+                              `Your entry amount: ${decryptedAmounts[`${raffle.id}-${address}`].toFixed(4)} ETH` :
+                              'Decrypting...'}
                         </div>
                       </div>
                     </CardContent>
