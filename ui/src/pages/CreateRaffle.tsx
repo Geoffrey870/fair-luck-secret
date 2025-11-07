@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { Contract } from "ethers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { CONTRACT_ADDRESS, getFHERaffleFactory } from "@/config/contracts";
 export default function CreateRaffle() {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const { instance, isLoading: zamaLoading } = useZamaInstance();
   const signerPromise = useEthersSigner();
   const [loading, setLoading] = useState(false);
@@ -42,6 +43,15 @@ export default function CreateRaffle() {
       return;
     }
 
+    // Check network - allow both local (31337) and Sepolia (11155111)
+    const isLocalNetwork = chainId === 31337;
+    const isSepoliaNetwork = chainId === 11155111;
+    
+    if (!isLocalNetwork && !isSepoliaNetwork) {
+      toast.error(`Please switch to Hardhat local network (chainId: 31337) or Sepolia testnet (chainId: 11155111). Current chainId: ${chainId}`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -51,18 +61,27 @@ export default function CreateRaffle() {
       const maxEntries = parseInt(formData.maxEntries);
       const duration = parseInt(formData.duration);
 
-      if (prizeAmount <= 0 || entryFee <= 0) {
-        toast.error("Prize amount and entry fee must be greater than 0");
+      if (isNaN(prizeAmount) || prizeAmount <= 0) {
+        toast.error("Prize amount must be greater than 0");
+        setLoading(false);
         return;
       }
 
-      if (maxEntries < 2) {
+      if (isNaN(entryFee) || entryFee <= 0) {
+        toast.error("Entry fee must be greater than 0");
+        setLoading(false);
+        return;
+      }
+
+      if (isNaN(maxEntries) || maxEntries < 2) {
         toast.error("Max entries must be at least 2");
+        setLoading(false);
         return;
       }
 
-      if (duration <= 0) {
+      if (isNaN(duration) || duration <= 0) {
         toast.error("Duration must be greater than 0");
+        setLoading(false);
         return;
       }
 
@@ -78,14 +97,43 @@ export default function CreateRaffle() {
         signer
       );
 
+      // Verify contract exists at address
+      const provider = signer.provider;
+      if (provider) {
+        const code = await provider.getCode(CONTRACT_ADDRESS);
+        if (code === '0x' || code === '0x0') {
+          toast.error(`Contract not found at address ${CONTRACT_ADDRESS}. Please deploy the contract first.`);
+          setLoading(false);
+          return;
+        }
+      }
+
       console.log('Creating raffle with params:', {
         title: formData.title,
         description: formData.description,
         prizeAmount: prizeAmountWei.toString(),
         entryFee: entryFeeWei.toString(),
         maxEntries,
-        duration
+        duration,
+        chainId,
+        contractAddress: CONTRACT_ADDRESS
       });
+
+      // Estimate gas first to catch errors early
+      try {
+        const gasEstimate = await contract.createRaffle.estimateGas(
+          formData.title,
+          formData.description,
+          prizeAmountWei,
+          entryFeeWei,
+          maxEntries,
+          duration
+        );
+        console.log('Gas estimate:', gasEstimate.toString());
+      } catch (estimateError: any) {
+        console.error('Gas estimation failed:', estimateError);
+        throw estimateError;
+      }
 
       const tx = await contract.createRaffle(
         formData.title,
@@ -96,6 +144,9 @@ export default function CreateRaffle() {
         duration
       );
 
+      console.log('Transaction sent:', tx.hash);
+      toast.info(`Transaction sent: ${tx.hash.substring(0, 10)}...`);
+
       await tx.wait();
 
       toast.success("Raffle created successfully!");
@@ -105,14 +156,21 @@ export default function CreateRaffle() {
       
       // Provide more specific error messages
       let errorMessage = "Failed to create raffle";
+      
       if (error.reason) {
         errorMessage = error.reason;
       } else if (error.message) {
         if (error.message.includes("require")) {
           errorMessage = "Invalid raffle parameters. Please check your inputs.";
+        } else if (error.message.includes("network") || error.message.includes("chain")) {
+          errorMessage = `Network error. Please ensure you're connected to the correct network (chainId: ${chainId}).`;
+        } else if (error.message.includes("revert")) {
+          errorMessage = "Transaction reverted. Please check your inputs and ensure the contract is deployed.";
         } else {
           errorMessage = error.message;
         }
+      } else if (error.data) {
+        errorMessage = `Contract error: ${JSON.stringify(error.data)}`;
       }
       
       toast.error(errorMessage);
