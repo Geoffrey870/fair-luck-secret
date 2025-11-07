@@ -1,34 +1,11 @@
-import { useState } from "react";
 import Header from "@/components/Header";
 import RaffleBoard from "@/components/RaffleBoard";
-import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
 
 const Index = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string>();
-  const { toast } = useToast();
-
-  const handleConnectWallet = () => {
-    if (!isConnected) {
-      // Simulate wallet connection
-      const mockAddress = "0x" + Math.random().toString(16).substring(2, 42);
-      setWalletAddress(mockAddress);
-      setIsConnected(true);
-      toast({
-        title: "Wallet Connected",
-        description: "Rainbow Wallet connected successfully!",
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
-      <Header
-        onConnectWallet={handleConnectWallet}
-        isConnected={isConnected}
-        walletAddress={walletAddress}
-      />
+      <Header />
 
       <main className="pt-24">
         {/* Hero Section */}
