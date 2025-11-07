@@ -137,7 +137,8 @@ export default function CreateRaffle() {
       }
 
       // Send transaction with optional gas limit
-      const txOptions: any = {};
+      // In Ethers.js v6, transaction options are passed as the last argument
+      const txOptions: { gasLimit?: bigint } = {};
       if (gasEstimate) {
         // Add 20% buffer to gas estimate
         txOptions.gasLimit = gasEstimate + (gasEstimate / BigInt(5));
@@ -150,7 +151,7 @@ export default function CreateRaffle() {
         entryFeeWei,
         maxEntries,
         duration,
-        Object.keys(txOptions).length > 0 ? txOptions : undefined
+        txOptions.gasLimit ? txOptions : {}
       );
 
       console.log('Transaction sent:', tx.hash);
