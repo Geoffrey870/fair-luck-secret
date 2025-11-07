@@ -1,73 +1,110 @@
-# Welcome to your Lovable project
+# FHEVM Hardhat Template
 
-## Project info
+A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
+FHEVM protocol by Zama.
 
-**URL**: https://lovable.dev/projects/0c6f7bbf-a96f-4d07-8f26-5bb8b7b072a0
+## Quick Start
 
-## How can I edit this code?
+For detailed instructions see:
+[FHEVM Hardhat Quick Start Tutorial](https://docs.zama.ai/protocol/solidity-guides/getting-started/quick-start-tutorial)
 
-There are several ways of editing your application.
+### Prerequisites
 
-**Use Lovable**
+- **Node.js**: Version 20 or higher
+- **npm or yarn/pnpm**: Package manager
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0c6f7bbf-a96f-4d07-8f26-5bb8b7b072a0) and start prompting.
+### Installation
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Install dependencies**
 
-**Use your preferred IDE**
+   ```bash
+   npm install
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2. **Set up environment variables**
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+   ```bash
+   npx hardhat vars set MNEMONIC
 
-Follow these steps:
+   # Set your Infura API key for network access
+   npx hardhat vars set INFURA_API_KEY
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+   # Optional: Set Etherscan API key for contract verification
+   npx hardhat vars set ETHERSCAN_API_KEY
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. **Compile and test**
 
-# Step 3: Install the necessary dependencies.
-npm i
+   ```bash
+   npm run compile
+   npm run test
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+4. **Deploy to local network**
+
+   ```bash
+   # Start a local FHEVM-ready node
+   npx hardhat node
+   # Deploy to local network
+   npx hardhat deploy --network localhost
+   ```
+
+5. **Deploy to Sepolia Testnet**
+
+   ```bash
+   # Deploy to Sepolia
+   npx hardhat deploy --network sepolia
+   # Verify contract on Etherscan
+   npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
+   ```
+
+6. **Test on Sepolia Testnet**
+
+   ```bash
+   # Once deployed, you can run a simple test on Sepolia.
+   npx hardhat test --network sepolia
+   ```
+
+## 📁 Project Structure
+
+```
+fhevm-hardhat-template/
+├── contracts/           # Smart contract source files
+│   └── FHECounter.sol   # Example FHE counter contract
+├── deploy/              # Deployment scripts
+├── tasks/               # Hardhat custom tasks
+├── test/                # Test files
+├── hardhat.config.ts    # Hardhat configuration
+└── package.json         # Dependencies and scripts
 ```
 
-**Edit a file directly in GitHub**
+## 📜 Available Scripts
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+| Script             | Description              |
+| ------------------ | ------------------------ |
+| `npm run compile`  | Compile all contracts    |
+| `npm run test`     | Run all tests            |
+| `npm run coverage` | Generate coverage report |
+| `npm run lint`     | Run linting checks       |
+| `npm run clean`    | Clean build artifacts    |
 
-**Use GitHub Codespaces**
+## 📚 Documentation
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- [FHEVM Documentation](https://docs.zama.ai/fhevm)
+- [FHEVM Hardhat Setup Guide](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup)
+- [FHEVM Testing Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat/write_test)
+- [FHEVM Hardhat Plugin](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat)
 
-## What technologies are used for this project?
+## 📄 License
 
-This project is built with:
+This project is licensed under the BSD-3-Clause-Clear License. See the [LICENSE](LICENSE) file for details.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🆘 Support
 
-## How can I deploy this project?
+- **GitHub Issues**: [Report bugs or request features](https://github.com/zama-ai/fhevm/issues)
+- **Documentation**: [FHEVM Docs](https://docs.zama.ai)
+- **Community**: [Zama Discord](https://discord.gg/zama)
 
-Simply open [Lovable](https://lovable.dev/projects/0c6f7bbf-a96f-4d07-8f26-5bb8b7b072a0) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+**Built with ❤️ by the Zama team**
