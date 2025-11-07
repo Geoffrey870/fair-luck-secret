@@ -77,7 +77,7 @@ export async function hasEntered(raffleId: number, participant: string, chainId?
   return entered;
 }
 
-export async function getUserEntryAmount(raffleId: number, participant: string, chainId?: number): Promise<number | null> {
+export async function getUserEntryAmount(raffleId: number, participant: string, chainId?: number): Promise<any | null> {
   if (typeof window === 'undefined' || !window.ethereum) {
     return null;
   }
@@ -95,16 +95,25 @@ export async function getUserEntryAmount(raffleId: number, participant: string, 
   );
 
   try {
-    // Get entry count for this raffle
-    const entryCount = await contract.getEntryCount(raffleId);
+    // Since we don't have getEntryCount in ABI, we'll try a different approach
+    // We'll try to call getEntry with increasing indices until we find the user's entry
+    // or hit an error (which likely means we've exceeded the array bounds)
 
-    // Find the user's entry by iterating through all entries
-    for (let i = 0; i < Number(entryCount); i++) {
-      const entry = await contract.getEntry(raffleId, i);
-      if (entry.participant.toLowerCase() === participant.toLowerCase()) {
-        // Found user's entry, return the encrypted amount
-        // Note: This returns the raw encrypted value, frontend needs to decrypt it
-        return entry.encAmount;
+    let entryIndex = 0;
+    const maxAttempts = 1000; // Reasonable limit to prevent infinite loops
+
+    while (entryIndex < maxAttempts) {
+      try {
+        const entry = await contract.getEntry(raffleId, entryIndex);
+        if (entry.participant.toLowerCase() === participant.toLowerCase()) {
+          // Found user's entry, return the encrypted amount
+          return entry.encAmount; // This is euint32
+        }
+        entryIndex++;
+      } catch (entryError) {
+        // If we get an error calling getEntry, it likely means we've exceeded the array bounds
+        // This is our way of detecting when we've checked all entries
+        break;
       }
     }
 
