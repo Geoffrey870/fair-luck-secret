@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAccount, useChainId } from "wagmi";
+import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,6 @@ import Header from "@/components/Header";
 import { toast } from "sonner";
 import { getRaffleCount, getRaffleMeta, hasEntered, getUserEntryAmount } from "@/lib/contractUtils";
 import { useZamaInstance } from "@/hooks/useZamaInstance";
-import { useEthersSigner } from "@/hooks/useEthersSigner";
 import { getContractAddress } from "@/config/contracts";
 
 interface Raffle {
@@ -34,7 +33,7 @@ export default function MyRaffles() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { instance: zamaInstance } = useZamaInstance();
-  const signerPromise = useEthersSigner();
+  const { data: walletClient } = useWalletClient();
   const [createdRaffles, setCreatedRaffles] = useState<Raffle[]>([]);
   const [myEntries, setMyEntries] = useState<Raffle[]>([]);
   const [decryptedAmounts, setDecryptedAmounts] = useState<{[key: string]: number}>({});
@@ -221,23 +220,39 @@ export default function MyRaffles() {
               startTimeStamp,
               durationDays
             );
-            console.log('✅ EIP712 data created');
+            console.log('✅ EIP712 data created, structure:', {
+              domain: eip712.domain,
+              types: eip712.types,
+              message: eip712.message
+            });
 
-            // Get signer and sign typed data
-            const signer = await signerPromise;
-            if (!signer) {
-              throw new Error('No signer available for signature');
+            // Check wallet client availability
+            if (!walletClient) {
+              throw new Error('No wallet client available for signature');
             }
 
             console.log('✍️ Requesting user signature...');
-            const signature = await signer.signTypedData({
-              domain: eip712.domain,
-              types: {
-                UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification,
-              },
-              primaryType: 'UserDecryptRequestVerification',
-              message: eip712.message
-            });
+            console.log('🔍 Wallet client type:', typeof walletClient);
+
+            // Try the signature with proper error handling
+            let signature;
+            try {
+              signature = await walletClient.signTypedData({
+                domain: eip712.domain,
+                types: eip712.types,
+                primaryType: 'UserDecryptRequestVerification',
+                message: eip712.message
+              });
+              console.log('✅ Signature obtained');
+            } catch (signError) {
+              console.error('❌ Signature failed:', signError);
+              console.error('❌ Sign error details:', {
+                domain: eip712.domain,
+                types: eip712.types,
+                message: eip712.message
+              });
+              throw signError;
+            }
             console.log('✅ User signature obtained');
 
             // Execute decryption
