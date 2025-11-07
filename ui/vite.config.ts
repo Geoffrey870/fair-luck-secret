@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
@@ -15,7 +19,10 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    global: 'globalThis', // Required for FHE SDK
+  },
   optimizeDeps: {
-    exclude: ['@zama-fhe/relayer-sdk'], // Exclude from optimization since it uses dynamic imports
+    include: ['@zama-fhe/relayer-sdk/bundle'], // Include bundle for optimization
   },
 }));

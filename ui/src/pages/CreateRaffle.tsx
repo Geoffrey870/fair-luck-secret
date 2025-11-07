@@ -45,8 +45,29 @@ export default function CreateRaffle() {
     setLoading(true);
 
     try {
-      const prizeAmountWei = BigInt(Math.floor(parseFloat(formData.prizeAmount) * 1e18));
-      const entryFeeWei = BigInt(Math.floor(parseFloat(formData.entryFee) * 1e18));
+      // Validate form data
+      const prizeAmount = parseFloat(formData.prizeAmount);
+      const entryFee = parseFloat(formData.entryFee);
+      const maxEntries = parseInt(formData.maxEntries);
+      const duration = parseInt(formData.duration);
+
+      if (prizeAmount <= 0 || entryFee <= 0) {
+        toast.error("Prize amount and entry fee must be greater than 0");
+        return;
+      }
+
+      if (maxEntries < 2) {
+        toast.error("Max entries must be at least 2");
+        return;
+      }
+
+      if (duration <= 0) {
+        toast.error("Duration must be greater than 0");
+        return;
+      }
+
+      const prizeAmountWei = BigInt(Math.floor(prizeAmount * 1e18));
+      const entryFeeWei = BigInt(Math.floor(entryFee * 1e18));
 
       // Submit to contract (prize and entry fee are now public, not encrypted)
       const signer = await signerPromise;
@@ -57,13 +78,22 @@ export default function CreateRaffle() {
         signer
       );
 
+      console.log('Creating raffle with params:', {
+        title: formData.title,
+        description: formData.description,
+        prizeAmount: prizeAmountWei.toString(),
+        entryFee: entryFeeWei.toString(),
+        maxEntries,
+        duration
+      });
+
       const tx = await contract.createRaffle(
         formData.title,
         formData.description,
         prizeAmountWei,
         entryFeeWei,
-        parseInt(formData.maxEntries),
-        parseInt(formData.duration)
+        maxEntries,
+        duration
       );
 
       await tx.wait();
@@ -72,7 +102,20 @@ export default function CreateRaffle() {
       navigate("/");
     } catch (error: any) {
       console.error("Error creating raffle:", error);
-      toast.error(error.message || "Failed to create raffle");
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to create raffle";
+      if (error.reason) {
+        errorMessage = error.reason;
+      } else if (error.message) {
+        if (error.message.includes("require")) {
+          errorMessage = "Invalid raffle parameters. Please check your inputs.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
