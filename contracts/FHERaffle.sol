@@ -65,7 +65,7 @@ contract FHERaffle is SepoliaConfig {
         uint32 maxEntries,
         uint32 durationHours
     ) external {
-        require(maxEntries > 2, "Max entries must be at least 2");
+        require(maxEntries >= 2, "Max entries must be at least 2");
         require(durationHours > 0, "Duration must be positive");
         require(prizeAmount > 0, "Prize amount must be positive");
         require(entryFee > 0, "Entry fee must be positive");
