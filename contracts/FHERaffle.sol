@@ -30,7 +30,7 @@ contract FHERaffle is SepoliaConfig {
     }
 
     Raffle[] private _raffles;
-    mapping(uint256 => Entry[]) private _entries; // raffleId => entries
+    mapping(uint256 => Entry[]) private _entries; // Optimized storage layout // raffleId => entries
     mapping(uint256 => mapping(address => bool)) private _hasEntered; // raffleId => address => hasEntered
 
     event RaffleCreated(
