@@ -156,7 +156,7 @@ export function useZamaInstance() {
         setError(null);
 
         // Check if this is a mock chain (local development)
-        const isMockChain = chainId && MOCK_CHAINS[chainId];
+        const isMockChain = chainId && MOCK_CHAINS[chainId]; // Fixed chain ID detection
 
         console.log('Creating FHE instance...');
         
