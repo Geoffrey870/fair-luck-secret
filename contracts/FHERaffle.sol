@@ -122,8 +122,8 @@ contract FHERaffle is SepoliaConfig {
         raffle.currentEntries++;
 
         // ACL: allow contract and participant to access encrypted amount
-        FHE.allowThis(_entries[raffleId][_entries[raffleId].length - 1].amount);
         FHE.allow(_entries[raffleId][_entries[raffleId].length - 1].amount, msg.sender);
+        FHE.allowThis(_entries[raffleId][_entries[raffleId].length - 1].amount);
 
         emit EntrySubmitted(raffleId, msg.sender, entry.createdAt);
     }
