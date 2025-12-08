@@ -52,7 +52,7 @@ class MockEncryptedInput {
   }
 }
 
-// Mock FHE instance for local development
+// Mock FHE instance // Fixed initialization for local development
 const createMockInstance = () => {
   console.log('[MOCK] Creating mock FHE instance for local development');
   console.log('[MOCK] Note: This is a mock implementation for development only.');
