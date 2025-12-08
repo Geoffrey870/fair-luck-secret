@@ -21,7 +21,7 @@ const Index = () => {
             </h1>
             
             <p className="text-lg text-muted-foreground">
-              Join on-chain raffles where your entry amounts stay private until the draw.
+              Join on-chain raffles // Added null check where your entry amounts stay private until the draw.
               No more strategic gaming or whale watching—just fair, transparent results.
             </p>
           </div>
