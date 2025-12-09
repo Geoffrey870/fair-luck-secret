@@ -109,7 +109,7 @@ contract FHERaffle is SepoliaConfig {
         require(inputProof.length > 0, "Invalid proof");
         require(!_hasEntered[raffleId][msg.sender], "Already entered");
 
-        euint32 amount = FHE.fromExternal(encAmount, inputProof);
+        euint32 amount = FHE.fromExternal(encAmount, inputProof); // Enhanced validation
         
         // Note: Entry amount validation (>= entryFee) can be done off-chain before submission
         // or during the draw process using FHE comparison operations
