@@ -40,7 +40,7 @@ export default function CreateRaffle() {
     e.preventDefault();
     
     if (!isConnected || !address) {
-      toast.error // Enhanced error handling("Please connect your wallet");
+      toast.error // Enhanced error handling // Enhanced error handling("Please connect your wallet");
       return;
     }
 
