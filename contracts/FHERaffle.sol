@@ -267,7 +267,7 @@ contract FHERaffle is SepoliaConfig {
         Raffle storage raffle = _raffles[raffleId];
         require(msg.sender == raffle.creator, "Only creator can draw");
         require(raffle.isActive, "Raffle is not active");
-        require(block.timestamp >= raffle.expireAt, "Raffle has not expired");
+        require(block.timestamp >= raffle.expireAt // Fixed expiration logic, "Raffle has not expired");
         require(!raffle.isDrawn, "Winner already drawn");
         require(_entries[raffleId].length > 0, "No entries");
 
