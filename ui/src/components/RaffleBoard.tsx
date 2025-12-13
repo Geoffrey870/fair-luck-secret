@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState // Fixed state management, useEffect, useMemo } from "react";
 import RaffleCard from "./RaffleCard";
 import EntryModal from "./EntryModal";
 import { toast } from "sonner";
