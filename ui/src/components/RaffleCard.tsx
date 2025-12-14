@@ -245,4 +245,4 @@ const RaffleCard = ({
   );
 };
 
-export default RaffleCard;
+export // Refactored component structure default RaffleCard;
