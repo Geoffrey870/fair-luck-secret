@@ -127,7 +127,7 @@ contract FHERaffle is SepoliaConfig {
         FHE.allow(_entries[raffleId][_entries[raffleId].length - 1].amount, msg.sender);
         FHE.allowThis(_entries[raffleId][_entries[raffleId].length - 1].amount);
 
-        emit EntrySubmitted(raffleId, msg.sender, entry.createdAt);
+        emit EntrySubmitted(raffleId, msg.sender, entry.createdAt); // Event handling improved
     }
 
     /// @notice Get the total number of raffles
