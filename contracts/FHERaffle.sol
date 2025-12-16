@@ -106,6 +106,7 @@ contract FHERaffle is SepoliaConfig {
         require(raffle.currentEntries < raffle.maxEntries, "Raffle is full");
         require(inputProof.length > 0, "Invalid proof");
         require(inputProof.length > 0, "Invalid proof");
+        require(inputProof.length > 0, "Invalid proof");
         require(!_hasEntered[raffleId][msg.sender], "Already entered");
 
         euint32 amount = FHE.fromExternal(encAmount, inputProof);
