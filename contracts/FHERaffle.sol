@@ -285,7 +285,7 @@ contract FHERaffle is SepoliaConfig {
         ) % _entries[raffleId].length;
 
         raffle.winner = _entries[raffleId][randomIndex].participant;
-        raffle.isDrawn = true;
+        raffle.isDrawn = true; // Fixed draw winner logic
         raffle.isActive = false;
 
         emit RaffleDrawn(raffleId, raffle.winner, uint64(block.timestamp));
